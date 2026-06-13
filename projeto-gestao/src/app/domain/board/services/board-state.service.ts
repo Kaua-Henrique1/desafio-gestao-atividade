@@ -60,32 +60,84 @@ export class BoardStateService {
     this._state.set(updatedState);
   }
 
-  // MUTAÇÕES DA SPRINT 2
-  moveTask(taskId: string, targetColumnId: string): void {
+  // MUTAÇÃO COMPLETA DA SPRINT 3 + REGRAS DE NEGÓCIO
+  updateTask(taskId: string, updatedFields: Partial<Task>): void {
     const currentTasks = this._state().tasks;
-    const taskIndex = currentTasks.findIndex(t => t.id === taskId);
+    const task = currentTasks.find(t => t.id === taskId);
+    if (!task) throw new Error('Tarefa não encontrada!');
 
-    if (taskIndex === -1) return;
-
-    const task = currentTasks[taskIndex];
-
-    // Regra de Negócio: Mover para Teste ('col-teste') exige um Revisor atribuído
-    if (targetColumnId === 'col-teste' && !task.reviewerId) {
-      throw new Error('Movimentação negada: Tarefas enviadas para Teste exigem um revisor atribuído!');
+    // 1. Validação Estrita de Fibonacci
+    if (updatedFields.points !== undefined) {
+      const validFibonacci = [1, 2, 3, 5, 8, 13];
+      if (!validFibonacci.includes(updatedFields.points)) {
+        throw new Error('Pontuação inválida! Use apenas Fibonacci (1, 2, 3, 5, 8, 13).');
+      }
     }
 
-    // Cria uma nova lista imutável com a tarefa atualizada
+    // 2. Validação: Revisor NÃO pode ser o Executor
+    const finalExecutorId = updatedFields.executorId !== undefined ? updatedFields.executorId : task.executorId;
+    const finalReviewerId = updatedFields.reviewerId !== undefined ? updatedFields.reviewerId : task.reviewerId;
+
+    if (finalReviewerId && finalExecutorId === finalReviewerId) {
+      throw new Error('Regra de Segurança: O Revisor não pode ser o próprio Executor da tarefa!');
+    }
+
     const updatedTasks = currentTasks.map(t => {
       if (t.id === taskId) {
-        return { ...t, columnId: targetColumnId, updatedAt: new Date().toISOString() };
+        return {
+          ...t,
+          ...updatedFields,
+          updatedAt: new Date().toISOString()
+        };
       }
       return t;
     });
 
-    this.saveToStorage({
-      ...this._state(),
-      tasks: updatedTasks
+    this.saveToStorage({ ...this._state(), tasks: updatedTasks });
+  }
+
+  // CONTROLE DE FLUXO DE COLUNAS ESTRETO (CORRIGIDO E BLINDADO)
+  moveTask(taskId: string, targetColumnId: string): void {
+    const currentTasks = this._state().tasks;
+    const task = currentTasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    const indoParaInicio = targetColumnId === 'col-backlog' || targetColumnId === 'col-ready';
+
+    // Regra: Para ir para novas branches ou testes, precisa ter um executor vinculado
+    if (!indoParaInicio && !task.executorId) {
+      throw new Error('Não é possível mover: Vincule um Executor no modal antes de tirar a tarefa de Ready.');
+    }
+
+    // Regra: Só vai para FEITO se a origem for TESTE e tiver aprovação (reviewerId preenchido)
+    if (targetColumnId === 'col-feito') {
+      if (task.columnId !== 'col-teste') {
+        throw new Error('Fluxo Inválido: A tarefa só pode ir para "Feito" vinda da coluna "Teste".');
+      }
+      if (!task.reviewerId) {
+        throw new Error('Bloqueio: A tarefa precisa ser revisada e assinada por um Revisor antes de ir para Feito.');
+      }
+    }
+
+    const updatedTasks = currentTasks.map(t => {
+      if (t.id === taskId) {
+        // Verifica se está voltando de Teste para uma branch (Ignora se estiver indo para Feito ou permanecendo em Teste)
+        const voltandoParaBranch = task.columnId === 'col-teste' && !indoParaInicio && targetColumnId !== 'col-feito' && targetColumnId !== 'col-teste';
+
+        return {
+          ...t,
+          columnId: targetColumnId,
+          // Se for para o Backlog/Ready, limpa o executor. Se for para uma Branch, mantém o executor original intacto!
+          executorId: indoParaInicio ? '' : t.executorId,
+          // Se voltou para a branch, limpa o revisor (remove a tag), senão mantém o que estava
+          reviewerId: voltandoParaBranch ? null : t.reviewerId,
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return t;
     });
+
+    this.saveToStorage({ ...this._state(), tasks: updatedTasks });
   }
 
   addTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>): void {
@@ -105,8 +157,6 @@ export class BoardStateService {
   addColumn(columnName: string): void {
     const currentColumns = this._state().columns;
 
-    // Insert new column between Ready (sequence 1) and Teste (sequence 3).
-    // We'll assign sequence = 2 and bump any columns with sequence >= 2.
     const updatedColumns = currentColumns.map((c) => ({ ...c }));
     for (const c of updatedColumns) {
       if (c.sequence >= 2) {
