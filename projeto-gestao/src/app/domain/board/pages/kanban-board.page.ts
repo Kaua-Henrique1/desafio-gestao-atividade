@@ -7,6 +7,7 @@ import { Task, User, ChecklistItem } from '@core/models/interfaces';
 @Component({
   selector: 'app-kanban-board-page',
   standalone: true,
+
   imports: [CommonModule, DragDropModule],
   template: `
     <div class="p-4">
@@ -43,7 +44,7 @@ import { Task, User, ChecklistItem } from '@core/models/interfaces';
                   <article
                     cdkDrag
                     [cdkDragData]="task"
-                    (click)="openTaskDetail(task)"
+                    (dblclick)="openTaskDetail(task); $event.stopPropagation()"
                     class="bg-white rounded-lg p-3 shadow-sm hover:shadow-md transition cursor-pointer"
                   >
                     <div *cdkDragPlaceholder class="border-2 border-dashed border-gray-300 rounded-xl h-24 bg-gray-50/50"></div>
@@ -71,7 +72,9 @@ import { Task, User, ChecklistItem } from '@core/models/interfaces';
                     <div class="mt-3 flex justify-between items-center text-xs text-gray-500">
                       <span>📅 {{ daysRemainingText(task.deadline) }}</span>
                       @if (task.reviewerId) {
-                        <span class="px-1.5 py-0.5 bg-green-100 text-green-800 rounded font-medium">✓ Revisado</span>
+                        <span class="px-1.5 py-0.5 bg-green-100 text-green-800 rounded font-medium text-[10px]" [title]="'Revisado por: ' + getUserById(task.reviewerId)?.name">
+                          ✓ Rev: {{ initials(getUserById(task.reviewerId)?.name) }}
+                        </span>
                       }
                     </div>
 
@@ -131,10 +134,10 @@ import { Task, User, ChecklistItem } from '@core/models/interfaces';
 
               <div>
                 <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Revisor / Homologador</label>
-                @if (selectedTask.columnId === 'col-teste') {
+                  @if (selectedTask.columnId === 'col-teste') {
                   <select [value]="selectedTask.reviewerId || ''" (change)="selectedTask.reviewerId = $any($event.target).value || null" class="w-full border rounded px-3 py-2 text-sm bg-green-50 border-green-300">
                     <option value="">Aguardando Revisão...</option>
-                    @for (user of users(); track user.id) {
+                    @for (user of getAvailableReviewers(); track user.id) {
                       <option [value]="user.id">{{ user.name }}</option>
                     }
                   </select>
@@ -190,6 +193,9 @@ export class KanbanBoardPage {
   readonly tasks = this.board.tasks;
   readonly users = this.board.users;
 
+  // Drag guard to prevent click-after-drag opening the modal
+  private isDragging = false;
+
   selectedTask: Task | null = null;
 
   getTasksForColumn(columnId: string): Task[] {
@@ -236,7 +242,14 @@ export class KanbanBoardPage {
   }
 
   onDrop(event: CdkDragDrop<Task[]>): void {
-    if (event.previousContainer === event.container) return;
+    // set dragging flag to avoid click event after drop
+    this.isDragging = true;
+    if (event.previousContainer === event.container) {
+      // reset dragging flag after a short delay
+      setTimeout(() => { this.isDragging = false; }, 100);
+      return;
+    }
+
     const taskId = event.item.data?.id;
     const targetColumnId = event.container.id;
 
@@ -245,6 +258,9 @@ export class KanbanBoardPage {
       this.board.moveTask(taskId, targetColumnId);
     } catch (err: any) {
       alert(err?.message ?? 'Não foi possível mover a tarefa');
+    } finally {
+      // small delay to avoid click-after-drag from opening the modal
+      setTimeout(() => { this.isDragging = false; }, 100);
     }
   }
 
@@ -266,6 +282,11 @@ export class KanbanBoardPage {
     this.selectedTask = null;
   }
 
+  getAvailableReviewers(): User[] {
+    const execId = this.selectedTask?.executorId;
+    return this.users().filter((u: User) => u.id !== execId);
+  }
+
   toggleChecklistItem(item: ChecklistItem): void {
     if (!item) return;
     item.done = !item.done;
@@ -284,6 +305,12 @@ export class KanbanBoardPage {
 
   saveTaskChanges(): void {
     if (!this.selectedTask) return;
+    // If task is in Teste, reviewer must be assigned
+    if (this.selectedTask.columnId === 'col-teste' && !this.selectedTask.reviewerId) {
+      alert('A tarefa na coluna "Teste" requer que um revisor seja atribuído antes de salvar.');
+      return;
+    }
+
     try {
       // Passando os argumentos corretos para o serviço real: ID e Objeto
       this.board.updateTask(this.selectedTask.id, this.selectedTask);

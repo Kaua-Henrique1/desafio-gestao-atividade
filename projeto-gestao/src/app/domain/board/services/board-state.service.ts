@@ -96,7 +96,7 @@ export class BoardStateService {
     this.saveToStorage({ ...this._state(), tasks: updatedTasks });
   }
 
-  // CONTROLE DE FLUXO DE COLUNAS ESTRETO (CORRIGIDO E BLINDADO)
+  // CONTROLE DE FLUXO DE COLUNAS ESTRETO (SPRINT 4)
   moveTask(taskId: string, targetColumnId: string): void {
     const currentTasks = this._state().tasks;
     const task = currentTasks.find(t => t.id === taskId);
@@ -104,12 +104,26 @@ export class BoardStateService {
 
     const indoParaInicio = targetColumnId === 'col-backlog' || targetColumnId === 'col-ready';
 
+    // Regra: Se for mover para Cancelado, solicitamos motivo e zeramos os pontos imediatamente
+    if (targetColumnId === 'col-cancelado') {
+      const reason = prompt('Informe o motivo do cancelamento:') || 'Cancelado pelo usuário';
+      const updatedTasks = currentTasks.map(t => {
+        if (t.id === taskId) {
+          return { ...t, columnId: targetColumnId, cancelReason: reason, points: 0, updatedAt: new Date().toISOString() };
+        }
+        return t;
+      });
+
+      this.saveToStorage({ ...this._state(), tasks: updatedTasks });
+      return;
+    }
+
     // Regra: Para ir para novas branches ou testes, precisa ter um executor vinculado
     if (!indoParaInicio && !task.executorId) {
       throw new Error('Não é possível mover: Vincule um Executor no modal antes de tirar a tarefa de Ready.');
     }
 
-    // Regra: Só vai para FEITO se a origem for TESTE e tiver aprovação (reviewerId preenchido)
+    // Regra: Validações estritas e acionamento de métricas para a coluna FEITO
     if (targetColumnId === 'col-feito') {
       if (task.columnId !== 'col-teste') {
         throw new Error('Fluxo Inválido: A tarefa só pode ir para "Feito" vinda da coluna "Teste".');
@@ -117,19 +131,20 @@ export class BoardStateService {
       if (!task.reviewerId) {
         throw new Error('Bloqueio: A tarefa precisa ser revisada e assinada por um Revisor antes de ir para Feito.');
       }
+
+      // Calcula e incrementa os pontos no histórico de métricas
+      this.calculateMetrics(task);
     }
 
+    // Mapeamento e atualização física da coluna do card no painel Kanban
     const updatedTasks = currentTasks.map(t => {
       if (t.id === taskId) {
-        // Verifica se está voltando de Teste para uma branch (Ignora se estiver indo para Feito ou permanecendo em Teste)
         const voltandoParaBranch = task.columnId === 'col-teste' && !indoParaInicio && targetColumnId !== 'col-feito' && targetColumnId !== 'col-teste';
 
         return {
           ...t,
           columnId: targetColumnId,
-          // Se for para o Backlog/Ready, limpa o executor. Se for para uma Branch, mantém o executor original intacto!
           executorId: indoParaInicio ? '' : t.executorId,
-          // Se voltou para a branch, limpa o revisor (remove a tag), senão mantém o que estava
           reviewerId: voltandoParaBranch ? null : t.reviewerId,
           updatedAt: new Date().toISOString()
         };
@@ -138,6 +153,39 @@ export class BoardStateService {
     });
 
     this.saveToStorage({ ...this._state(), tasks: updatedTasks });
+  }
+
+  private calculateMetrics(task: Task): void {
+    const metrics = [...this._state().metrics];
+
+    const ensureMetric = (userId: string) => {
+      let m = metrics.find(mt => mt.userId === userId);
+      if (!m) {
+        m = {
+          userId,
+          pointsExecuted: 0,
+          tasksCompleted: 0,
+          pointsReviewed: 0,
+          tasksReviewed: 0
+        } as UserMetric;
+        metrics.push(m);
+      }
+      return m;
+    };
+
+    if (task.executorId) {
+      const executorMetric = ensureMetric(task.executorId);
+      executorMetric.pointsExecuted = (executorMetric.pointsExecuted || 0) + (task.points || 0);
+      executorMetric.tasksCompleted = (executorMetric.tasksCompleted || 0) + 1;
+    }
+
+    if (task.reviewerId) {
+      const reviewerMetric = ensureMetric(task.reviewerId);
+      reviewerMetric.pointsReviewed = (reviewerMetric.pointsReviewed || 0) + 2;
+      reviewerMetric.tasksReviewed = (reviewerMetric.tasksReviewed || 0) + 1;
+    }
+
+    this.saveToStorage({ ...this._state(), metrics });
   }
 
   addTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>): void {
