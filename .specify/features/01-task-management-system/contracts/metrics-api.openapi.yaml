@@ -1,0 +1,511 @@
+openapi: 3.1.0
+info:
+  title: Task Management System - Metrics & Reporting API
+  description: |
+    API for accessing team metrics, throughput reports, and performance indicators.
+    - Real-time WIP metrics
+    - Sprint throughput calculations
+    - Deadline alerts
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3000/api
+    description: Development server
+  - url: https://api.taskmanagement.app/api
+    description: Production server
+
+paths:
+  /metrics/wip:
+    get:
+      summary: Get Work In Progress (WIP) load per user
+      operationId: getWIPMetrics
+      tags:
+        - Metrics
+      parameters:
+        - name: teamId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: boardId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: WIP load per user
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserWIPMetric'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /metrics/alerts:
+    get:
+      summary: Get deadline alerts (< 48h with low progress)
+      operationId: getDeadlineAlerts
+      tags:
+        - Metrics
+      parameters:
+        - name: teamId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: severity:
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - critical
+              - warning
+              - all
+            default: all
+      responses:
+        '200':
+          description: List of at-risk tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeadlineAlert'
+
+  /sprints/{sprintId}/metrics:
+    get:
+      summary: Get sprint metrics summary
+      operationId: getSprintMetrics
+      tags:
+        - Metrics
+      parameters:
+        - name: sprintId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Sprint metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SprintMetrics'
+
+  /sprints/{sprintId}/throughput:
+    get:
+      summary: Get throughput report per user
+      operationId: getThroughputReport
+      tags:
+        - Metrics
+      parameters:
+        - name: sprintId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: sortBy
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - points_executed
+              - points_total
+              - tasks_completed
+            default: points_total
+      responses:
+        '200':
+          description: Throughput per user
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserThroughputMetric'
+
+  /users/{userId}/metrics:
+    get:
+      summary: Get individual user metrics (personal or team data if Gestor)
+      operationId: getUserMetrics
+      tags:
+        - Metrics
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: teamId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: dateFrom
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+            description: Start date for metrics range
+        - name: dateTo
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+            description: End date for metrics range
+      responses:
+        '200':
+          description: User metrics history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserMetricSnapshot'
+        '403':
+          description: Cannot view other user's metrics (unless Gestor)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tasks/{taskId}/transitions:
+    get:
+      summary: Get task state change history (audit trail)
+      operationId: getTaskTransitions
+      tags:
+        - Tasks
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Task transitions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaskTransition'
+
+  /checkpoints/review:
+    post:
+      summary: Get tasks requiring review (in Teste column, not yet approved)
+      operationId: getTasksForReview
+      tags:
+        - Checkpoints
+      parameters:
+        - name: teamId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: assignedToCurrentUser
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: Tasks pending review
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pendingReview:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Task'
+                  count:
+                    type: integer
+
+components:
+  schemas:
+    UserWIPMetric:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        userName:
+          type: string
+        wipPoints:
+          type: integer
+          description: Sum of estimated points in active columns
+        taskCount:
+          type: integer
+        isAtRisk:
+          type: boolean
+          description: true if WIP > 13 points
+        recommendation:
+          type: string
+          enum:
+            - none
+            - reduce_wip
+            - urgent
+          example: "reduce_wip"
+
+    DeadlineAlert:
+      type: object
+      properties:
+        alertId:
+          type: string
+          format: uuid
+        task:
+          $ref: '#/components/schemas/TaskSummary'
+        executor:
+          $ref: '#/components/schemas/UserSummary'
+        hoursRemaining:
+          type: number
+          minimum: 0
+        daysRemaining:
+          type: number
+          format: double
+          minimum: 0
+        checklistCompletion:
+          type: number
+          description: Percentage (0-100)
+          example: 60
+        severity:
+          type: string
+          enum:
+            - critical
+            - warning
+        message:
+          type: string
+          example: "Task 'API Integration' has 18 hours remaining with 60% checklist done"
+
+    SprintMetrics:
+      type: object
+      properties:
+        sprintId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        status:
+          type: string
+          enum:
+            - Planning
+            - Active
+            - Closed
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        summary:
+          type: object
+          properties:
+            totalPointsPlanned:
+              type: integer
+            totalPointsCompleted:
+              type: integer
+            completionRate:
+              type: number
+              description: Percentage of planned points completed
+              example: 85.5
+            taskCount:
+              type: integer
+            completedTaskCount:
+              type: integer
+            canceledTaskCount:
+              type: integer
+            overdueCount:
+              type: integer
+            teamVelocity:
+              type: number
+              description: Average points per person
+              example: 45.2
+
+    UserThroughputMetric:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        pointsExecuted:
+          type: integer
+          description: Sum of completed task points
+        pointsReviewed:
+          type: integer
+          description: Count of reviewed tasks × 2
+        totalPoints:
+          type: integer
+          description: pointsExecuted + pointsReviewed
+        tasksCompleted:
+          type: integer
+        tasksCanceled:
+          type: integer
+        averageTaskSize:
+          type: number
+          description: Average points per task (executed)
+          example: 5.2
+        reviewsCompleted:
+          type: integer
+        avgChecklistCompletion:
+          type: number
+          description: Average % of checklist items completed
+          example: 92.5
+
+    UserMetricSnapshot:
+      type: object
+      properties:
+        recordedAt:
+          type: string
+          format: date-time
+        sprintName:
+          type: string
+        pointsExecuted:
+          type: integer
+        pointsReviewed:
+          type: integer
+        tasksCompleted:
+          type: integer
+        tasksCanceled:
+          type: integer
+        tasksOverdue:
+          type: integer
+        avgChecklistCompletion:
+          type: number
+          example: 90.0
+
+    TaskTransition:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        taskId:
+          type: string
+          format: uuid
+        taskTitle:
+          type: string
+        fromColumn:
+          type: string
+          nullable: true
+        toColumn:
+          type: string
+        performedBy:
+          $ref: '#/components/schemas/UserSummary'
+        cancelReason:
+          type: string
+          nullable: true
+        timestamp:
+          type: string
+          format: date-time
+        durationInColumn:
+          type: integer
+          description: Hours spent in previous column
+          nullable: true
+
+    TaskSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        estimatedPoints:
+          type: integer
+          enum:
+            - 1
+            - 2
+            - 3
+            - 5
+            - 8
+            - 13
+        currentColumn:
+          type: string
+        deadline:
+          type: string
+          format: date-time
+
+    UserSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum:
+            - Gestor
+            - Executor
+            - Revisor
+
+    Task:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        columnId:
+          type: string
+          format: uuid
+        estimatedPoints:
+          type: integer
+        executor:
+          $ref: '#/components/schemas/UserSummary'
+        deadline:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        statusCode:
+          type: integer
+        message:
+          type: string
+        error:
+          type: string
+
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+securitySchemes:
+  bearerAuth:
+    type: http
+    scheme: bearer
+    bearerFormat: JWT
+
+security:
+  - bearerAuth: []
+
