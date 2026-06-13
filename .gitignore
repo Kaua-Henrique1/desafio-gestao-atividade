@@ -1,0 +1,57 @@
+# ==========================================
+# Angular & Node Standard Gitignore
+# ==========================================
+
+# Dependencies
+node_modules/
+/dist/
+/.angular/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Directory for instrumented code coverage downloads
+/coverage
+
+# Ide-specific files
+.history/
+.spec/
+
+# Documentation / Artifacts
+.docusaurus/
+
+# ==========================================
+# IDEs and Editors Configs
+# ==========================================
+
+# IntelliJ IDEA (WebStorm, PhpStorm, etc.)
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+.crac/
+
+# Visual Studio Code
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+.history/
+*.code-workspace
+
+# Submissions & OS Metadata
+.DS_Store
+Thumbs.db
