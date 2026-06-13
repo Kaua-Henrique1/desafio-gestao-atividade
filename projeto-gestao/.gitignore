@@ -1,44 +1,81 @@
-# See https://docs.github.com/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
-
-# Compiled output
+# ==========================================
+# Dependências e Builds (Angular & Node)
+# ==========================================
+node_modules/
+/node_modules
 /dist
 /tmp
 /out-tsc
 /bazel-out
+/.angular/
+/.angular/cache
 
-# Node
-/node_modules
-npm-debug.log
-yarn-error.log
+# ==========================================
+# Logs e Relatórios
+# ==========================================
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+testem.log
+/libpeerconnection.log
 
-# IDEs and editors
+# ==========================================
+# Cobertura de Testes e Prints
+# ==========================================
+/coverage
+__screenshots__/
+
+# ==========================================
+# Dados de Runtime e Temporários
+# ==========================================
+pids
+*.pid
+*.seed
+*.pid.lock
+/connect.lock
+/typings
+
+# ==========================================
+# Configurações de IDEs (IntelliJ, WebStorm)
+# ==========================================
 .idea/
-.project
-.classpath
-.c9/
-*.launch
-.settings/
-*.sublime-workspace
+*.iml
+*.iws
+*.ipr
+out/
+.crac/
 
-# Visual Studio Code
+# ==========================================
+# Configurações do VS Code (Preservando Essenciais)
+# ==========================================
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
 !.vscode/mcp.json
+
+# ==========================================
+# Outros Editores e Histórico
+# ==========================================
+.history/
 .history/*
-
-# Miscellaneous
-/.angular/cache
+.spec/
+.docusaurus/
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+*.code-workspace
 .sass-cache/
-/connect.lock
-/coverage
-/libpeerconnection.log
-testem.log
-/typings
-__screenshots__/
 
-# System files
+# ==========================================
+# Arquivos de Sistema (OS Metadata)
+# ==========================================
 .DS_Store
 Thumbs.db
