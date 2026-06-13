@@ -3,15 +3,6 @@
   <component name="CopilotDiffPersistence">
     <option name="pendingDiffs">
       <map>
-        <entry key="$PROJECT_DIR$/projeto-gestao/src/app/app.ts">
-          <value>
-            <PendingDiffInfo>
-              <option name="filePath" value="$PROJECT_DIR$/projeto-gestao/src/app/app.ts" />
-              <option name="originalContent" value="import { Component, signal } from '@angular/core';&#10;import { RouterOutlet } from '@angular/router';&#10;&#10;@Component({&#10;  selector: 'app-root',&#10;  imports: [RouterOutlet],&#10;  templateUrl: './app.html',&#10;  styleUrl: './app.css'&#10;})&#10;export class App {&#10;  protected readonly title = signal('projeto-gestao');&#10;}&#10;" />
-              <option name="updatedContent" value="import { Component, signal } from '@angular/core';&#10;import { RouterOutlet } from '@angular/router';&#10;&#10;@Component({&#10;  selector: 'app-root',&#10;  imports: [RouterOutlet],&#10;  template: '&lt;router-outlet&gt;&lt;/router-outlet&gt;'&#10;})&#10;export class App {&#10;  protected readonly title = signal('projeto-gestao');&#10;}&#10;" />
-            </PendingDiffInfo>
-          </value>
-        </entry>
         <entry key="$PROJECT_DIR$/src/app/domain/board/services/board-state.service.ts">
           <value>
             <PendingDiffInfo>

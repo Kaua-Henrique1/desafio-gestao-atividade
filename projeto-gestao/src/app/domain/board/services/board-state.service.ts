@@ -101,4 +101,31 @@ export class BoardStateService {
       tasks: [...this._state().tasks, newTask]
     });
   }
+
+  addColumn(columnName: string): void {
+    const currentColumns = this._state().columns;
+
+    // Insert new column between Ready (sequence 1) and Teste (sequence 3).
+    // We'll assign sequence = 2 and bump any columns with sequence >= 2.
+    const updatedColumns = currentColumns.map((c) => ({ ...c }));
+    for (const c of updatedColumns) {
+      if (c.sequence >= 2) {
+        c.sequence = c.sequence + 1;
+      }
+    }
+
+    const newColumn: Column = {
+      id: 'col-' + Date.now(),
+      name: columnName,
+      sequence: 2,
+      isFixed: false,
+    };
+
+    updatedColumns.push(newColumn);
+
+    this.saveToStorage({
+      ...this._state(),
+      columns: updatedColumns
+    });
+  }
 }
