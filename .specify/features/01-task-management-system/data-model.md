@@ -162,7 +162,7 @@ Update Frequency: On every state mutation (move, create, edit, delete)
 Load Time: <100ms on app startup
 ```
 ---
-## Seeded Data (seed-data.ts)
+## Seeded Data (seed-data.service.ts)
 ### 10 Hardcoded Users
 ```typescript
 export const SEED_USERS: User[] = [

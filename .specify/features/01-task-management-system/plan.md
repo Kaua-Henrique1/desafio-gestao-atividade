@@ -112,53 +112,38 @@ A **client-side only** kanban task management system built in Angular 17/18 usin
 
 ```text
 # Client-Side Only Angular Application
-
 src/
 ├── app/
 │   ├── core/
-│   │   ├── services/
-│   │   │   ├── board-state.service.ts        # Central state (Signals + LocalStorage)
-│   │   │   ├── metrics.service.ts            # Throughput, WIP, alerts calculation
-│   │   │   ├── task.service.ts               # Task CRUD operations
-│   │   │   └── seed-data.ts                  # 10 hardcoded users + sample tasks
+│   │   ├── guards/                    # Route guards (vazios para o MVP)
 │   │   └── models/
-│   │       └── interfaces.ts                 # All TypeScript interfaces here
+│   │       └── interfaces.ts          # Contratos de tipos globais (sem prefixo I)
 │   │
-│   ├── shared/
-│   │   ├── components/
-│   │   │   ├── task-card/
-│   │   │   ├── task-modal/
-│   │   │   └── user-avatar/
-│   │   ├── pipes/
-│   │   │   ├── workday-conversion.pipe.ts    # 8h = 1 workday
-│   │   │   └── countdown.pipe.ts             # Format deadline countdown
-│   │   └── directives/
-│   │       └── fibonacci-validator.directive.ts
-│   │
-│   ├── features/
+│   ├── domain/                        # Módulos com regras e contextos de negócio
 │   │   ├── board/
-│   │   │   ├── board.component.ts            # Main Kanban board
-│   │   │   ├── column.component.ts           # Kanban column (CDK drop zone)
-│   │   │   ├── task-card.component.ts        # Task card (CDK drag source)
-│   │   │   └── board.service.ts              # Board-specific logic
+│   │   │   ├── components/            # Componentes locais do quadro (colunas, cards)
+│   │   │   ├── pages/
+│   │   │   │   └── kanban-board.page.ts # Página principal do Kanban (Roteada)
+│   │   │   └── services/
+│   │   │       ├── board-state.service.ts # Cérebro do App (Signals + LocalStorage)
+│   │   │       └── seed-data.service.ts   # Massa de 10 usuários e tasks iniciais
 │   │   │
-│   │   ├── task-detail/
-│   │   │   ├── task-modal.component.ts       # Task detail modal
-│   │   │   ├── checklist.component.ts        # Checklist checkboxes
-│   │   │   └── reviewer-selector.component.ts
+│   │   ├── task/
+│   │   │   └── components/            # Modais de detalhes, formulários e checklists
 │   │   │
 │   │   └── dashboard/
-│   │       ├── dashboard.component.ts        # KPI view (Throughput, WIP, Alerts)
-│   │       ├── kpi-card.component.ts
-│   │       └── alert-list.component.ts
+│   │       ├── components/            # Mini cards de KPI e listas de alerta
+│   │       └── pages/
+│   │           └── kpi-dashboard.page.ts  # Tela de métricas estratégica do Ricardo
 │   │
-│   ├── app.component.ts                      # Root component (navigation)
-│   ├── app.route.ts                          # Routes
-│   └── app.config.ts                         # Standalone config
-│
-├── main.ts                                   # Bootstrap
-├── styles.css                                # Global styles (Tailwind)
-└── index.html
+│   ├── shared/
+│   │   └── utils/                     # Helpers genéricos não visuais
+│   │
+│   └── widget/                        # Componentes, pipes e diretivas visuais reutilizáveis
+│       ├── components/                # UI genérica (Avatares, botões padrão)
+│       ├── directives/                # Validadores (ex: Validador Fibonacci)
+│       └── pipes/
+│           └── workday-conversion.pipe.ts # Pipe de conversão (8h = 1 dia util)
 
 tests/
 ├── services/
