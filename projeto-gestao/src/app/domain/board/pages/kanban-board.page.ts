@@ -3,12 +3,15 @@ import { CommonModule } from '@angular/common';
 import { DragDropModule, CdkDragDrop } from '@angular/cdk/drag-drop';
 import { BoardStateService } from '../services/board-state.service';
 import { Task, User } from '@core/models/interfaces';
-import { FormsModule } from '@angular/forms'; // 🚀 Importado com sucesso
+import { FormsModule } from '@angular/forms';
+import { WorkdayConversionPipe } from '@core/pipes/workday-conversion.pipe';
+import { CountdownPipe } from '@core/pipes/countdown.pipe';
+import { FibonacciValidatorDirective } from '@core/directives/fibonacci-validator.directive';
 
 @Component({
   selector: 'app-kanban-board-page',
   standalone: true,
-  imports: [CommonModule, DragDropModule, FormsModule], // 🚀 FormsModule registrado aqui
+  imports: [CommonModule, DragDropModule, FormsModule, WorkdayConversionPipe, CountdownPipe, FibonacciValidatorDirective],
   template: `
     <div class="p-4">
       <div class="flex gap-4 p-4 bg-slate-800 text-white mb-4 rounded shadow">
@@ -74,7 +77,7 @@ import { FormsModule } from '@angular/forms'; // 🚀 Importado com sucesso
 
                         <div class="flex flex-col items-end gap-2">
                           <div class="px-2 py-1 bg-gray-100 rounded text-xs font-medium text-gray-600">
-                            {{ task.points }} pts
+                            {{ task.points | workdayConversion }}
                           </div>
                           <div
                             class="w-8 h-8 rounded-full text-white flex items-center justify-center text-xs font-bold"
@@ -87,7 +90,12 @@ import { FormsModule } from '@angular/forms'; // 🚀 Importado com sucesso
                       </div>
 
                       <div class="mt-3 flex justify-between items-center text-xs text-gray-500">
-                        <span>📅 {{ daysRemainingText(task.dueDate) }}</span>
+                        <span
+                          [class.text-red-600]="task.columnId !== 'col-feito' && isOverdue(task.dueDate)"
+                          [class.text-emerald-600]="task.columnId === 'col-feito'">
+                          {{ task.dueDate | countdown: task.columnId }}
+                        </span>
+
                         @if (task.reviewerId) {
                           <span class="px-1.5 py-0.5 bg-green-100 text-green-800 rounded font-medium text-[10px]" [title]="'Revisado por: ' + getUserById(task.reviewerId)?.name">
                             ✓ Rev: {{ initials(getUserById(task.reviewerId)?.name) }}
@@ -185,7 +193,13 @@ import { FormsModule } from '@angular/forms'; // 🚀 Importado com sucesso
 
                 <div>
                   <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Fibonacci Pts</label>
-                  <input type="number" [(ngModel)]="selectedTask.points" class="w-full border rounded px-3 py-2 text-sm text-slate-800" />
+                  <input type="number" name="points" [(ngModel)]="selectedTask.points" appFibonacciValidator #pointsCtrl="ngModel" class="w-full border rounded px-3 py-2 text-sm text-slate-800" />
+
+                  @if (pointsCtrl.invalid && (pointsCtrl.touched || pointsCtrl.dirty)) {
+                    <div class="text-red-500 text-[11px] mt-1">
+                      Valor inválido: utilize 1, 2, 3, 5, 8 ou 13
+                    </div>
+                  }
                 </div>
               </div>
 
@@ -198,6 +212,7 @@ import { FormsModule } from '@angular/forms'; // 🚀 Importado com sucesso
 
               <div>
                 <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Revisor / Homologador</label>
+
                 @if (selectedTask.columnId === 'col-teste') {
                   <select [(ngModel)]="selectedTask.reviewerId" class="w-full border rounded px-3 py-2 text-sm bg-green-50 border-green-300 text-slate-800">
                     <option [value]="null">Aguardando Revisão...</option>
@@ -206,6 +221,13 @@ import { FormsModule } from '@angular/forms'; // 🚀 Importado com sucesso
                     }
                   </select>
                   <p class="text-[11px] text-gray-500 mt-1">⚠️ O revisor deve ser um usuário diferente do executor.</p>
+
+                } @else if (selectedTask.columnId === 'col-feito') {
+                  <div class="p-2 bg-emerald-50 text-emerald-800 text-sm font-medium rounded border border-emerald-200 flex items-center justify-between">
+                    <span>✓ Homologado por: <strong>{{ getUserById(selectedTask.reviewerId)?.name || 'Sem revisor cadastrado' }}</strong></span>
+                    <span class="text-xs bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Concluído</span>
+                  </div>
+
                 } @else {
                   <div class="p-2 bg-gray-100 text-gray-500 text-xs rounded border border-dashed">
                     A assinatura de homologação só será liberada na coluna "Teste".
@@ -235,9 +257,17 @@ import { FormsModule } from '@angular/forms'; // 🚀 Importado com sucesso
               </div>
             </div>
 
-            <footer class="border-t pt-3 mt-4 flex justify-end gap-2">
-              <button (click)="closeModal()" class="px-4 py-2 border rounded text-sm text-gray-600 hover:bg-gray-50">Cancelar</button>
-              <button (click)="saveTaskChanges()" class="px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700">Salvar e Fechar</button>
+            <footer class="border-t pt-3 mt-4 flex justify-between items-center">
+              <button
+                (click)="deleteCurrentTask()"
+                class="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 hover:border-red-300 rounded text-sm font-medium transition flex items-center gap-1">
+                🗑️ Excluir Tarefa
+              </button>
+
+              <div class="flex gap-2">
+                <button (click)="closeModal()" class="px-4 py-2 border rounded text-sm text-gray-600 hover:bg-gray-50">Cancelar</button>
+                <button (click)="saveTaskChanges()" class="px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700">Salvar e Fechar</button>
+              </div>
             </footer>
           </div>
         </div>
@@ -281,14 +311,36 @@ export class KanbanBoardPage {
     return (parts[0][0] + parts[1][0]).toUpperCase();
   }
 
-  daysRemainingText(deadline?: string | null): string {
-    if (!deadline) return 'Sem prazo';
-    const d = new Date(deadline);
+  // 🚀 CORREÇÃO DE BUG DE FUSO NO MÉTODO DE ESTADO DA UI:
+  isOverdue(deadline?: string | null): boolean {
+    if (!deadline) return false;
+
+    const dateParts = deadline.split('-');
+    if (dateParts.length !== 3) return false;
+
+    // Força a data a instanciar na meia-noite local
+    const d = new Date(Number(dateParts[0]), Number(dateParts[1]) - 1, Number(dateParts[2]));
+    if (isNaN(d.getTime())) return false;
+
     const today = new Date();
-    const diffMs = d.setHours(0, 0, 0, 0) - today.setHours(0, 0, 0, 0);
-    const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-    if (days >= 0) return `${days} dia${days === 1 ? '' : 's'} restante${days === 1 ? '' : 's'}`;
-    return `Atrasado por ${Math.abs(days)} dia${Math.abs(days) === 1 ? '' : 's'}`;
+    today.setHours(0, 0, 0, 0);
+    return d.getTime() < today.getTime();
+  }
+
+  deleteCurrentTask(): void {
+    if (!this.selectedTask) return;
+
+    const confirmacao = confirm(`Tem certeza que deseja excluir permanentemente a tarefa "${this.selectedTask.title}"?`);
+    if (!confirmacao) return;
+
+    try {
+      // Chama o método de exclusão do serviço
+      this.board.deleteTask(this.selectedTask.id);
+      // Fecha o modal após excluir
+      this.closeModal();
+    } catch (err: any) {
+      alert(err?.message ?? 'Erro ao excluir a tarefa');
+    }
   }
 
   checklistProgressText(task: Task): string {
@@ -349,7 +401,6 @@ export class KanbanBoardPage {
   }
 
   openTaskDetail(task: Task): void {
-    // Clona o objeto profundamente para termos edições temporárias seguras
     this.selectedTask = JSON.parse(JSON.stringify(task));
   }
 
@@ -381,13 +432,8 @@ export class KanbanBoardPage {
 
   saveTaskChanges(): void {
     if (!this.selectedTask) return;
-    if (this.selectedTask.columnId === 'col-teste' && !this.selectedTask.reviewerId) {
-      alert('A tarefa na coluna "Teste" requer que um revisor seja atribuído antes de salvar.');
-      return;
-    }
 
     try {
-      // Passa as alterações higienizadas para o serviço centralizado
       this.board.updateTask(this.selectedTask.id, this.selectedTask);
       this.closeModal();
     } catch (err: any) {

@@ -73,17 +73,30 @@ export class BoardStateService {
     const quarentaEOitoHorasEmMs = 48 * 60 * 60 * 1000;
 
     return tasks.filter(t => {
+      // 1. Ignora tarefas concluídas ou canceladas
       if (t.columnId === 'col-feito' || t.columnId === 'col-cancelado') return false;
       if (!t.dueDate) return false;
 
-      const prazo = new Date(t.dueDate).getTime();
+      // 2. Correção de fuso horário para alinhar perfeitamente com os cartões
+      const dateParts = t.dueDate.split('-');
+      if (dateParts.length !== 3) return false;
+      const prazo = new Date(Number(dateParts[0]), Number(dateParts[1]) - 1, Number(dateParts[2])).getTime();
+
       const tempoRestante = prazo - agora;
 
+      // 3. Calcula o progresso do checklist
       const totalItens = t.checklist?.length || 0;
       const itensFeitos = t.checklist?.filter(item => item.done).length || 0;
       const progressoChecklist = totalItens > 0 ? (itensFeitos / totalItens) * 100 : 0;
 
-      return tempoRestante > 0 && tempoRestante < quarentaEOitoHorasEmMs && progressoChecklist < 80;
+      // 🚀 NOVA REGRA: Está atrasada? (tempoRestante < 0)
+      const estaAtrasada = tempoRestante < 0;
+
+      // 🚀 REGRA ANTERIOR: Falta menos de 48h e o progresso está abaixo de 80%?
+      const emRiscoCritico = tempoRestante >= 0 && tempoRestante < quarentaEOitoHorasEmMs && progressoChecklist < 80;
+
+      // O alerta deve disparar se a tarefa estiver atrasada OU se estiver no gatilho de risco
+      return estaAtrasada || emRiscoCritico;
     });
   });
 
@@ -123,13 +136,12 @@ export class BoardStateService {
     this._state.set(updatedState);
   }
 
-  // MUTAÇÃO COMPLETA DA SPRINT 3 + REGRAS DE NEGÓCIO
+// 1. MUTAÇÃO COMPLETA DA SPRINT 3 + REGRAS DE NEGÓCIO ATUALIZADAS
   updateTask(taskId: string, updatedFields: Partial<Task>): void {
     const currentTasks = this._state().tasks;
     const task = currentTasks.find(t => t.id === taskId);
     if (!task) throw new Error('Tarefa não encontrada!');
 
-    // 1. Validação Estrita de Fibonacci
     if (updatedFields.points !== undefined) {
       const validFibonacci = [1, 2, 3, 5, 8, 13];
       if (!validFibonacci.includes(updatedFields.points)) {
@@ -137,7 +149,7 @@ export class BoardStateService {
       }
     }
 
-    // 2. Validação: Revisor NÃO pode ser o Executor
+    // Validação: Revisor NÃO pode ser o Executor
     const finalExecutorId = updatedFields.executorId !== undefined ? updatedFields.executorId : task.executorId;
     const finalReviewerId = updatedFields.reviewerId !== undefined ? updatedFields.reviewerId : task.reviewerId;
 
@@ -145,7 +157,6 @@ export class BoardStateService {
       throw new Error('Regra de Segurança: O Revisor não pode ser o próprio Executor da tarefa!');
     }
 
-    // 🚀 CORREÇÃO: Limpeza do bloco incorreto que gerava erros de compilação
     const updatedTasks = currentTasks.map(t => {
       if (t.id === taskId) {
         return {
@@ -160,7 +171,18 @@ export class BoardStateService {
     this.saveToStorage({ ...this._state(), tasks: updatedTasks });
   }
 
-  // CONTROLE DE FLUXO DE COLUNAS ESTRETO (SPRINT 4) + REFINAMENTOS
+  // REMOVE UMA TAREFA DEFINITIVAMENTE DO BANCO DE DADOS/STORAGE
+  deleteTask(taskId: string): void {
+    const currentTasks = this._state().tasks;
+
+    // Filtra removendo a tarefa que possui o ID informado
+    const updatedTasks = currentTasks.filter(t => t.id !== taskId);
+
+    // Salva o novo estado no LocalStorage e atualiza os Signals
+    this.saveToStorage({ ...this._state(), tasks: updatedTasks });
+  }
+
+  // 2. CONTROLE DE FLUXO DE COLUNAS ESTRETO (SPRINT 4) + REFINAMENTOS DE POLÍTICA DE LIMPEZA
   moveTask(taskId: string, targetColumnId: string): void {
     const currentTasks = this._state().tasks;
     const task = currentTasks.find(t => t.id === taskId);
@@ -170,10 +192,9 @@ export class BoardStateService {
 
     // Regra: Se for mover para Cancelado, solicitamos motivo e zeramos os pontos imediatamente
     if (targetColumnId === 'col-cancelado') {
-      const reason = prompt('Informe o motivo do cancelamento:') || 'Cancelado pelo usuário';
       const updatedTasks = currentTasks.map(t => {
         if (t.id === taskId) {
-          return { ...t, columnId: targetColumnId, cancelReason: reason, points: 0, updatedAt: new Date().toISOString() };
+          return { ...t, columnId: targetColumnId, points: 0, updatedAt: new Date().toISOString() };
         }
         return t;
       });
@@ -183,7 +204,7 @@ export class BoardStateService {
     }
 
     // Regra: Para ir para novas branches ou testes, precisa ter um executor vinculado
-    if (!indoParaInicio && !task.executorId) {
+    if (!indoParaInicio && !task.executorId && targetColumnId !== 'col-feito') {
       throw new Error('Não é possível mover: Vincule um Executor no modal antes de tirar a tarefa de Ready.');
     }
 
@@ -192,8 +213,11 @@ export class BoardStateService {
       if (task.columnId !== 'col-teste') {
         throw new Error('Fluxo Inválido: A tarefa só pode ir para "Feito" vinda da coluna "Teste".');
       }
+      // 💡 NOTA: Se você deixou o revisor opcional na coluna Teste, podemos manter essa validação ativa
+      // APENAS se você quiser que ele seja preenchido obrigatoriamente ANTES de arrastar para Feito.
+      // Se não quiser travar o arraste, comente as duas linhas abaixo:
       if (!task.reviewerId) {
-        throw new Error('Bloqueio: A tarefa precisa ser revisada e assinada por um Revisor antes de ir para Feito.');
+        throw new Error('Bloqueio: A tarefa precisa possuir um Revisor definido antes de ir para Feito.');
       }
 
       // Calcula e incrementa os pontos no histórico de métricas
@@ -205,18 +229,25 @@ export class BoardStateService {
       if (t.id === taskId) {
         const voltarParaOInicioReal = targetColumnId === 'col-backlog' || targetColumnId === 'col-ready';
 
-        // 🚀 REGRA NOVA: Se a tarefa estava na coluna "Feito" e foi puxada para fora dela
-        const saindoDeFeito = task.columnId === 'col-feito' && targetColumnId !== 'col-feito';
+        // 🚀 A NOVA REGRA DE LIMPEZA GERAL DE COLUNAS:
+        let novoExecutorId = voltarParaOInicioReal ? '' : t.executorId;
+        let novoReviewerId = t.reviewerId;
 
-        // Regra anterior da Sprint 4 (Voltando de Teste para o desenvolvimento/branches)
-        const voltandoParaBranch = task.columnId === 'col-teste' && !indoParaInicio && targetColumnId !== 'col-feito' && targetColumnId !== 'col-teste';
+        // Se a tarefa está indo para "Feito", nós NÃO limpamos nada! Preserva ambos.
+        if (targetColumnId === 'col-feito') {
+          novoExecutorId = t.executorId;
+          novoReviewerId = t.reviewerId;
+        }
+        // Se ela voltar de Teste para o desenvolvimento normal (ex: col-progress ou branches dinâmicas)
+        else if (task.columnId === 'col-teste' && targetColumnId !== 'col-teste') {
+          novoReviewerId = null; // Limpa o revisor para nova homologação futura
+        }
 
         return {
           ...t,
           columnId: targetColumnId,
-          executorId: voltarParaOInicioReal ? '' : t.executorId,
-          // 🚀 SEGREDO: Limpa o revisor se a task sair de "Feito" ou se voltar para uma branch vinda de teste
-          reviewerId: (saindoDeFeito || voltandoParaBranch) ? null : t.reviewerId,
+          executorId: novoExecutorId,
+          reviewerId: novoReviewerId,
           updatedAt: new Date().toISOString()
         };
       }
