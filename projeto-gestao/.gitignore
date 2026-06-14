@@ -58,6 +58,15 @@ out/
 !.vscode/extensions.json
 !.vscode/mcp.json
 
+# Editor directories and files
+.idea/
+.specify/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
 # ==========================================
 # Outros Editores e Histórico
 # ==========================================
