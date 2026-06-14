@@ -16,6 +16,38 @@ Para resolver o problema de gestão do Ricardo, pensei numa solução, criando u
 * **Scrum (Conceito de Esforço):** Absorvemos a estimativa por **Pontos de Fibonacci** e o conceito de **WIP (Work In Progress)** para limitar o trabalho em andamento por desenvolvedor, evitando sobrecargas.
 * **Ciclo PDCA (Melhoria Contínua):** O Dashboard acoplado atua diretamente na fase de **Checagem (Check)** e **Ação (Act)** do PDCA. Os indicadores geram dados históricos para que o Ricardo tome decisões de melhoria de processos na próxima etapa.
 
+```bash
+
+    ├── src/app
+    │   ├── app.config.ts
+    │   ├── app.css
+    │   ├── app.routes.ts
+    │   ├── app.spec.ts
+    │   ├── app.ts
+    │   ├── core
+    │   │   ├── directives
+    │   │   │   ├── fibonacci-validator.directive.spec.ts
+    │   │   │   └── fibonacci-validator.directive.ts
+    │   │   ├── models
+    │   │   │   └── interfaces.ts
+    │   │   └── pipes
+    │   │       ├── countdown.pipe.spec.ts
+    │   │       ├── countdown.pipe.ts
+    │   │       ├── workday-conversion.pipe.spec.ts
+    │   │       └── workday-conversion.pipe.ts
+    │   └── domain
+    │       └── board
+    │           ├── pages
+    │           │   └── kanban-board.page.ts
+    │           └── services
+    │               ├── board-state.service.spec.ts
+    │               ├── board-state.service.ts
+    │               └── seed-data.service.ts
+    ├── index.html
+    ├── main.ts
+    └── styles.css
+
+```
 ### Por que esta variação ataca as dores do Ricardo de verdade?
 Um Kanban tradicional apenas move cards. Já a variação do projeto, entrega diferenciais táticos desenhados para o cenário do Ricardo:
 1. **Gargalos Visíveis instantaneamente:** Ao cruzar o limite de colunas com o painel de **Carga de Trabalho Ativa (WIP)**, o Ricardo não precisa perguntar quem está sobrecarregado; o sistema aponta quem acumulou mais pontos ativos na sprint.
@@ -34,8 +66,22 @@ A aplicação foi desenvolvida utilizando **Angular (v17+)** com foco em **DDD (
 * **Padrão Estrito TypeScript:** 100% do código utiliza tipagem real estrita (através de interfaces unificadas em `core/models/interfaces.ts`).
 * **Familiaridade com Framework:** O Angular é um framework robusto e maduro, particularmente tenho experiência em projetos acadêmicos.
 
+---
+
 ### Por que Tailwind CSS?
 * **Utility-First:** Escolhido para evitar o crescimento inflacionário de arquivos CSS globais. O Tailwind compila apenas as classes utilitárias de estilo utilizadas em tempo de build, gerando um artefato leve e de carregamento instantâneo.
+
+---
+
+## Demonstração Visual do Painel
+
+Abaixo estão os registros visuais das duas principais interfaces desenvolvidas para sanar as necessidades de monitoramento e fluxo ágil do projeto:
+
+### Dashboard de KPIs e Métricas
+![Dashboard de KPIs](./image/dashboard.png)
+
+### Quadro Kanban Reativo
+![Quadro Kanban](./image/kanban.png)
 
 ---
 
