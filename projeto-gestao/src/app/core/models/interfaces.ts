@@ -8,7 +8,7 @@ export interface User {
 
 export interface ChecklistItem {
   id: string;
-  title: string;
+  title: string; // 👈 Garanta que aqui seja 'title'
   done: boolean;
 }
 
@@ -18,14 +18,13 @@ export interface Task {
   description?: string;
   columnId: string;
   executorId: string;
-  reviewerId: string | null;
+  reviewerId?: string | null;
   points: number;
-  hoursEstimate?: number;
-  deadline: Date | string;
-  checklist: ChecklistItem[];
-  cancelReason?: string;
+  checklist?: ChecklistItem[]; // 👈 Usando a interface unificada com 'title'
   createdAt: string;
   updatedAt: string;
+  dueDate?: string;
+  cancelReason?: string;
 }
 
 export interface Column {

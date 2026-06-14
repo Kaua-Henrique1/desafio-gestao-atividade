@@ -1,18 +1,23 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DragDropModule, CdkDragDrop } from '@angular/cdk/drag-drop';
 import { BoardStateService } from '../services/board-state.service';
-import { Task, User, ChecklistItem } from '@core/models/interfaces';
+import { Task, User } from '@core/models/interfaces';
+import { FormsModule } from '@angular/forms'; // 🚀 Importado com sucesso
 
 @Component({
   selector: 'app-kanban-board-page',
   standalone: true,
-
-  imports: [CommonModule, DragDropModule],
+  imports: [CommonModule, DragDropModule, FormsModule], // 🚀 FormsModule registrado aqui
   template: `
     <div class="p-4">
+      <div class="flex gap-4 p-4 bg-slate-800 text-white mb-4 rounded shadow">
+        <button (click)="currentTab.set('board')" [class.bg-blue-600]="currentTab() === 'board'" class="px-4 py-2 rounded font-medium transition">Quadro Kanban</button>
+        <button (click)="currentTab.set('dashboard')" [class.bg-blue-600]="currentTab() === 'dashboard'" class="px-4 py-2 rounded font-medium transition">Dashboard KPIs</button>
+      </div>
+
       <header class="flex items-center justify-between mb-4">
-        <h1 class="text-2xl font-semibold">Kanban Board</h1>
+        <h1 class="text-2xl font-semibold text-slate-800">Painel de Engenharia</h1>
         <div class="flex gap-2">
           <button (click)="addNewTask()" class="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition">
             ＋ Add Task
@@ -23,102 +28,154 @@ import { Task, User, ChecklistItem } from '@core/models/interfaces';
         </div>
       </header>
 
-      <section class="kanban-board">
-        <div class="flex gap-4 overflow-x-auto pb-4" cdkDropListGroup>
-          @for (col of columns(); track col.id) {
-            <section class="min-w-[280px] max-w-sm bg-slate-50 rounded-lg p-3 shadow-sm">
-              <div class="flex items-center justify-between mb-3">
-                <h2 class="text-lg font-medium">{{ col.name }}</h2>
-                <span class="text-xs text-gray-500">#{{ col.sequence }}</span>
-              </div>
+      @if (currentTab() === 'board') {
+        <section class="kanban-board">
+          <div class="flex gap-4 overflow-x-auto pb-4" cdkDropListGroup>
+            @for (col of columns(); track col.id) {
+              <section class="min-w-[280px] max-w-sm bg-slate-800 rounded-lg p-3 shadow-md border border-slate-700">
+                <div class="flex items-center justify-between mb-3 border-b border-slate-700 pb-2">
+                  <h2 class="text-lg font-bold text-slate-200 truncate pr-2" [title]="col.name">{{ col.name }}</h2>
+                  <div class="flex items-center gap-2 shrink-0">
+                    <span class="text-[10px] text-slate-400 font-mono bg-slate-800 px-1.5 py-0.5 rounded">#{{ col.sequence }}</span>
 
-              <div
-                class="space-y-3 min-h-[200px]"
-                cdkDropList
-                [cdkDropListData]="getTasksForColumn(col.id)"
-                [id]="col.id"
-                [cdkDropListConnectedTo]="connectedLists(col.id)"
-                (cdkDropListDropped)="onDrop($event)"
-              >
-                @for (task of getTasksForColumn(col.id); track task.id) {
-                  <article
-                    cdkDrag
-                    [cdkDragData]="task"
-                    (dblclick)="openTaskDetail(task); $event.stopPropagation()"
-                    class="bg-white rounded-lg p-3 shadow-sm hover:shadow-md transition cursor-pointer"
-                  >
-                    <div *cdkDragPlaceholder class="border-2 border-dashed border-gray-300 rounded-xl h-24 bg-gray-50/50"></div>
+                    @if (!col.isFixed) {
+                      <button
+                        (click)="removeCustomColumn(col.id, $event)"
+                        class="text-red-400 hover:text-red-100 bg-red-950/40 hover:bg-red-600 px-2 py-0.5 rounded text-xs font-black transition-all cursor-pointer border border-red-800/60 shadow-sm"
+                        title="Remover Coluna Customizada">
+                        ✕
+                      </button>
+                    }
+                  </div>
+                </div>
 
-                    <div class="flex items-start justify-between gap-2">
-                      <div class="flex-1">
-                        <h3 class="text-sm font-semibold text-gray-800">{{ task.title }}</h3>
-                        <p class="text-xs text-gray-500 mt-1 line-clamp-2">{{ task.description }}</p>
-                      </div>
+                <div
+                  class="space-y-3 min-h-[200px]"
+                  cdkDropList
+                  [cdkDropListData]="getTasksForColumn(col.id)"
+                  [id]="col.id"
+                  [cdkDropListConnectedTo]="connectedLists(col.id)"
+                  (cdkDropListDropped)="onDrop($event)"
+                >
+                  @for (task of getTasksForColumn(col.id); track task.id) {
+                    <article
+                      cdkDrag
+                      [cdkDragData]="task"
+                      (dblclick)="openTaskDetail(task); $event.stopPropagation()"
+                      class="bg-white rounded-lg p-3 shadow-sm hover:shadow-md transition cursor-pointer border border-slate-100 select-none"
+                    >
+                      <div *cdkDragPlaceholder class="border-2 border-dashed border-gray-300 rounded-xl h-24 bg-gray-50/50"></div>
 
-                      <div class="flex flex-col items-end gap-2">
-                        <div class="px-2 py-1 bg-gray-100 rounded text-xs font-medium text-gray-600">
-                          {{ task.points }} pts
+                      <div class="flex items-start justify-between gap-2">
+                        <div class="flex-1">
+                          <h3 class="text-sm font-semibold text-gray-800">{{ task.title }}</h3>
+                          <p class="text-xs text-gray-500 mt-1 line-clamp-2">{{ task.description }}</p>
                         </div>
-                        <div
-                          class="w-8 h-8 rounded-full text-white flex items-center justify-center text-xs font-bold"
-                          [className]="task.executorId ? 'bg-indigo-500' : 'bg-gray-400'"
-                          [title]="getUserById(task.executorId)?.name || 'Sem executor'"
-                        >
-                          {{ task.executorId ? initials(getUserById(task.executorId)?.name) : 'Ø' }}
+
+                        <div class="flex flex-col items-end gap-2">
+                          <div class="px-2 py-1 bg-gray-100 rounded text-xs font-medium text-gray-600">
+                            {{ task.points }} pts
+                          </div>
+                          <div
+                            class="w-8 h-8 rounded-full text-white flex items-center justify-center text-xs font-bold"
+                            [className]="task.executorId ? 'bg-indigo-500' : 'bg-gray-400'"
+                            [title]="getUserById(task.executorId)?.name || 'Sem executor'"
+                          >
+                            {{ task.executorId ? initials(getUserById(task.executorId)?.name) : 'Ø' }}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div class="mt-3 flex justify-between items-center text-xs text-gray-500">
-                      <span>📅 {{ daysRemainingText(task.deadline) }}</span>
-                      @if (task.reviewerId) {
-                        <span class="px-1.5 py-0.5 bg-green-100 text-green-800 rounded font-medium text-[10px]" [title]="'Revisado por: ' + getUserById(task.reviewerId)?.name">
-                          ✓ Rev: {{ initials(getUserById(task.reviewerId)?.name) }}
-                        </span>
-                      }
-                    </div>
+                      <div class="mt-3 flex justify-between items-center text-xs text-gray-500">
+                        <span>📅 {{ daysRemainingText(task.dueDate) }}</span>
+                        @if (task.reviewerId) {
+                          <span class="px-1.5 py-0.5 bg-green-100 text-green-800 rounded font-medium text-[10px]" [title]="'Revisado por: ' + getUserById(task.reviewerId)?.name">
+                            ✓ Rev: {{ initials(getUserById(task.reviewerId)?.name) }}
+                          </span>
+                        }
+                      </div>
 
-                    <div class="mt-2">
-                      <div class="flex items-center justify-between text-xs text-gray-600 mb-1">
-                        <div>📋 {{ checklistProgressText(task) }}</div>
-                        <div>{{ checklistPercent(task) }}%</div>
+                      <div class="mt-2">
+                        <div class="flex items-center justify-between text-xs text-gray-600 mb-1">
+                          <div>📋 {{ checklistProgressText(task) }}</div>
+                          <div>{{ checklistPercent(task) }}%</div>
+                        </div>
+                        <div class="w-full bg-gray-200 h-1.5 rounded-full">
+                          <div class="h-1.5 rounded-full bg-green-500 transition-all" [style.width.%]="checklistPercent(task)"></div>
+                        </div>
                       </div>
-                      <div class="w-full bg-gray-200 h-1.5 rounded-full">
-                        <div class="h-1.5 rounded-full bg-green-500 transition-all" [style.width.%]="checklistPercent(task)"></div>
-                      </div>
-                    </div>
-                  </article>
-                }
+                    </article>
+                  }
+                </div>
+              </section>
+            }
+          </div>
+        </section>
+      }
+
+      @if (currentTab() === 'dashboard') {
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 p-6 bg-slate-900 text-white min-h-[500px] rounded-xl shadow-inner">
+          <div class="p-4 bg-slate-800 rounded-lg border border-slate-700 shadow-sm">
+            <h3 class="font-bold mb-3 text-blue-400 uppercase tracking-wider text-xs border-b border-slate-700 pb-2">Throughput por Usuário</h3>
+            @for (m of throughput(); track m.userId) {
+              <p class="text-sm border-b border-slate-700/50 py-2 flex justify-between">
+                <span class="font-medium">{{ getUserById(m.userId)?.name || 'User ' + m.userId }}</span>
+                <span class="text-blue-300 font-mono font-bold">{{ m.pointsExecuted }} pts concluídos</span>
+              </p>
+            } @empty {
+              <p class="text-xs text-slate-500 italic py-2">Nenhuma métrica registrada ainda.</p>
+            }
+          </div>
+
+          <div class="p-4 bg-slate-800 rounded-lg border border-slate-700 shadow-sm">
+            <h3 class="font-bold mb-3 text-yellow-400 uppercase tracking-wider text-xs border-b border-slate-700 pb-2">Carga de Trabalho (WIP)</h3>
+            @for (w of wipLoad(); track w.userId) {
+              <p class="text-sm border-b border-slate-700/50 py-2 flex justify-between items-center">
+                <span class="font-medium">{{ w.userName }}</span>
+                <span class="text-yellow-300 font-mono bg-yellow-950/40 px-2 py-0.5 rounded text-xs border border-yellow-800">
+                  {{ w.wipPoints }} pts ativos ({{ w.taskCount }} tasks)
+                </span>
+              </p>
+            }
+          </div>
+
+          <div class="p-4 bg-slate-800 rounded-lg border border-slate-700 shadow-sm">
+            <h3 class="font-bold mb-3 text-red-400 uppercase tracking-wider text-xs border-b border-slate-700 pb-2">⚠️ Alertas de Prazo (&lt;48h)</h3>
+            @for (a of alerts(); track a.id) {
+              <div class="text-sm border-b border-slate-700/50 py-2 text-red-300 flex flex-col gap-0.5">
+                <span class="font-semibold text-slate-200">⚠️ {{ a.title }}</span>
+                <span class="text-[11px] text-red-400 font-mono">Entrega: {{ a.dueDate }} | Checklist em {{ checklistPercent(a) }}%</span>
               </div>
-            </section>
-          }
+            } @empty {
+              <p class="text-xs text-emerald-400 italic py-2 flex items-center gap-1">✓ Nenhuma tarefa em risco crítico!</p>
+            }
+          </div>
         </div>
-      </section>
+      }
 
       @if (selectedTask) {
-        <div class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+        <div class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 animate-fadeIn">
           <div class="bg-white w-full max-w-lg rounded-xl shadow-xl p-6 flex flex-col max-h-[90vh] overflow-hidden">
-
             <header class="flex justify-between items-center border-b pb-3 mb-4">
               <h2 class="text-xl font-bold text-gray-800">Detalhes da Tarefa</h2>
-              <button (click)="closeModal()" class="text-gray-400 hover:text-gray-600 text-lg">✕</button>
+              <button (click)="closeModal()" class="text-gray-400 hover:text-gray-600 text-lg font-bold">✕</button>
             </header>
 
             <div class="flex-1 overflow-y-auto space-y-4 pr-1">
               <div>
                 <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Título</label>
-                <input type="text" [value]="selectedTask.title" (input)="selectedTask.title = $any($event.target).value" class="w-full border rounded px-3 py-2 text-sm" />
+                <input type="text" [(ngModel)]="selectedTask.title" class="w-full border rounded px-3 py-2 text-sm text-slate-800" />
               </div>
 
               <div>
                 <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Descrição</label>
-                <textarea rows="2" [value]="selectedTask.description || ''" (input)="selectedTask.description = $any($event.target).value" class="w-full border rounded px-3 py-2 text-sm"></textarea>
+                <textarea rows="2" [(ngModel)]="selectedTask.description" class="w-full border rounded px-3 py-2 text-sm text-slate-800"></textarea>
               </div>
 
               <div class="grid grid-cols-2 gap-4">
                 <div>
                   <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Executor</label>
-                  <select [value]="selectedTask.executorId" (change)="selectedTask.executorId = $any($event.target).value" class="w-full border rounded px-3 py-2 text-sm bg-white">
+                  <select [(ngModel)]="selectedTask.executorId" class="w-full border rounded px-3 py-2 text-sm bg-white text-slate-800">
                     <option value="">Sem Executor (Disponível)</option>
                     @for (user of users(); track user.id) {
                       <option [value]="user.id">{{ user.name }}</option>
@@ -128,15 +185,22 @@ import { Task, User, ChecklistItem } from '@core/models/interfaces';
 
                 <div>
                   <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Fibonacci Pts</label>
-                  <input type="number" [value]="selectedTask.points" (input)="selectedTask.points = +$any($event.target).value" class="w-full border rounded px-3 py-2 text-sm" />
+                  <input type="number" [(ngModel)]="selectedTask.points" class="w-full border rounded px-3 py-2 text-sm text-slate-800" />
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 gap-4">
+                <div>
+                  <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Data de Entrega (Prazo)</label>
+                  <input type="date" [(ngModel)]="selectedTask.dueDate" class="w-full border rounded px-3 py-2 text-sm text-slate-800" />
                 </div>
               </div>
 
               <div>
                 <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Revisor / Homologador</label>
-                  @if (selectedTask.columnId === 'col-teste') {
-                  <select [value]="selectedTask.reviewerId || ''" (change)="selectedTask.reviewerId = $any($event.target).value || null" class="w-full border rounded px-3 py-2 text-sm bg-green-50 border-green-300">
-                    <option value="">Aguardando Revisão...</option>
+                @if (selectedTask.columnId === 'col-teste') {
+                  <select [(ngModel)]="selectedTask.reviewerId" class="w-full border rounded px-3 py-2 text-sm bg-green-50 border-green-300 text-slate-800">
+                    <option [value]="null">Aguardando Revisão...</option>
                     @for (user of getAvailableReviewers(); track user.id) {
                       <option [value]="user.id">{{ user.name }}</option>
                     }
@@ -165,8 +229,8 @@ import { Task, User, ChecklistItem } from '@core/models/interfaces';
                   }
                 </div>
                 <div class="flex gap-2">
-                  <input #newCheck type="text" placeholder="Nova sub-tarefa..." (keyup.enter)="addChecklistItem(newCheck)" class="flex-1 border rounded px-3 py-1 text-sm" />
-                  <button (click)="addChecklistItem(newCheck)" class="bg-slate-800 text-white text-xs px-3 rounded">Add</button>
+                  <input #newCheck type="text" placeholder="Nova sub-tarefa..." (keyup.enter)="addChecklistItem(newCheck)" class="flex-1 border rounded px-3 py-1 text-sm text-slate-800" />
+                  <button (click)="addChecklistItem(newCheck)" class="bg-slate-800 text-white text-xs px-3 rounded hover:bg-slate-700">Add</button>
                 </div>
               </div>
             </div>
@@ -193,10 +257,13 @@ export class KanbanBoardPage {
   readonly tasks = this.board.tasks;
   readonly users = this.board.users;
 
-  // Drag guard to prevent click-after-drag opening the modal
   private isDragging = false;
-
   selectedTask: Task | null = null;
+  currentTab = signal<'board' | 'dashboard'>('board');
+
+  readonly wipLoad = this.board.wipLoadByUser;
+  readonly alerts = this.board.deadlineAlerts;
+  readonly throughput = this.board.throughputByUser;
 
   getTasksForColumn(columnId: string): Task[] {
     return this.tasks().filter((t: Task) => t.columnId === columnId);
@@ -214,9 +281,9 @@ export class KanbanBoardPage {
     return (parts[0][0] + parts[1][0]).toUpperCase();
   }
 
-  daysRemainingText(deadline?: Date | string | null): string {
+  daysRemainingText(deadline?: string | null): string {
     if (!deadline) return 'Sem prazo';
-    const d = typeof deadline === 'string' ? new Date(deadline) : deadline;
+    const d = new Date(deadline);
     const today = new Date();
     const diffMs = d.setHours(0, 0, 0, 0) - today.setHours(0, 0, 0, 0);
     const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
@@ -226,14 +293,14 @@ export class KanbanBoardPage {
 
   checklistProgressText(task: Task): string {
     const total = task.checklist?.length ?? 0;
-    const done = task.checklist?.filter((c: ChecklistItem) => c.done).length ?? 0;
+    const done = task.checklist?.filter((c) => c.done).length ?? 0;
     return `${done}/${total} itens`;
   }
 
   checklistPercent(task: Task): number {
     const total = task.checklist?.length ?? 0;
     if (total === 0) return 0;
-    const done = task.checklist?.filter((c: ChecklistItem) => c.done).length ?? 0;
+    const done = task.checklist?.filter((c) => c.done).length ?? 0;
     return Math.round((done / total) * 100);
   }
 
@@ -242,15 +309,14 @@ export class KanbanBoardPage {
   }
 
   onDrop(event: CdkDragDrop<Task[]>): void {
-    // set dragging flag to avoid click event after drop
     this.isDragging = true;
     if (event.previousContainer === event.container) {
-      // reset dragging flag after a short delay
       setTimeout(() => { this.isDragging = false; }, 100);
       return;
     }
 
-    const taskId = event.item.data?.id;
+    const taskDragged = event.item.data as Task;
+    const taskId = taskDragged?.id;
     const targetColumnId = event.container.id;
 
     try {
@@ -259,7 +325,6 @@ export class KanbanBoardPage {
     } catch (err: any) {
       alert(err?.message ?? 'Não foi possível mover a tarefa');
     } finally {
-      // small delay to avoid click-after-drag from opening the modal
       setTimeout(() => { this.isDragging = false; }, 100);
     }
   }
@@ -274,8 +339,18 @@ export class KanbanBoardPage {
     }
   }
 
+  removeCustomColumn(columnId: string, event: Event): void {
+    event.stopPropagation();
+    try {
+      this.board.deleteColumn(columnId);
+    } catch (err: any) {
+      alert(err?.message ?? 'Não foi possível remover a coluna');
+    }
+  }
+
   openTaskDetail(task: Task): void {
-    this.selectedTask = JSON.parse(JSON.stringify(task)); // Deep clone seguro para isolar edições da UI
+    // Clona o objeto profundamente para termos edições temporárias seguras
+    this.selectedTask = JSON.parse(JSON.stringify(task));
   }
 
   closeModal(): void {
@@ -287,32 +362,32 @@ export class KanbanBoardPage {
     return this.users().filter((u: User) => u.id !== execId);
   }
 
-  toggleChecklistItem(item: ChecklistItem): void {
+  toggleChecklistItem(item: any): void {
     if (!item) return;
     item.done = !item.done;
   }
 
   removeChecklistItem(index: number): void {
-    if (!this.selectedTask) return;
+    if (!this.selectedTask || !this.selectedTask.checklist) return;
     this.selectedTask.checklist.splice(index, 1);
   }
 
   addChecklistItem(titleInput: HTMLInputElement): void {
     if (!titleInput.value.trim() || !this.selectedTask) return;
+    if (!this.selectedTask.checklist) this.selectedTask.checklist = [];
     this.selectedTask.checklist.push({ id: 'ch-' + Date.now(), title: titleInput.value.trim(), done: false });
     titleInput.value = '';
   }
 
   saveTaskChanges(): void {
     if (!this.selectedTask) return;
-    // If task is in Teste, reviewer must be assigned
     if (this.selectedTask.columnId === 'col-teste' && !this.selectedTask.reviewerId) {
       alert('A tarefa na coluna "Teste" requer que um revisor seja atribuído antes de salvar.');
       return;
     }
 
     try {
-      // Passando os argumentos corretos para o serviço real: ID e Objeto
+      // Passa as alterações higienizadas para o serviço centralizado
       this.board.updateTask(this.selectedTask.id, this.selectedTask);
       this.closeModal();
     } catch (err: any) {
@@ -325,10 +400,10 @@ export class KanbanBoardPage {
       title: 'Nova Tarefa',
       description: '',
       columnId: this.columns()[0]?.id || 'col-backlog',
-      executorId: '', // Começa estritamente sem executor
+      executorId: '',
       reviewerId: null,
       points: 1,
-      deadline: new Date().toISOString().split('T')[0],
+      dueDate: new Date().toISOString().split('T')[0],
       checklist: []
     };
 

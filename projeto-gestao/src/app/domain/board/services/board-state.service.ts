@@ -24,6 +24,69 @@ export class BoardStateService {
   readonly tasks = computed(() => this._state().tasks);
   readonly metrics = computed(() => this._state().metrics);
 
+  // 🚀 REATIVO: Atividades concluídas computadas em tempo real para o Dashboard
+  readonly throughputByUser = computed(() => {
+    const tasks = this._state().tasks;
+    const users = this._state().users;
+
+    return users.map(user => {
+      const completedTasks = tasks.filter(t => t.executorId === user.id && t.columnId === 'col-feito');
+      const totalPoints = completedTasks.reduce((sum, t) => sum + (t.points || 0), 0);
+
+      return {
+        userId: user.id,
+        userName: user.name,
+        pointsExecuted: totalPoints,
+        tasksCompleted: completedTasks.length
+      };
+    }).sort((a, b) => b.pointsExecuted - a.pointsExecuted);
+  });
+
+  // 🚀 REATIVO: Carga de Trabalho considerando colunas dinâmicas customizadas
+  readonly wipLoadByUser = computed(() => {
+    const tasks = this._state().tasks;
+    const users = this._state().users;
+
+    // Colunas de saída e entrada que NÃO contam como trabalho ativo em andamento (WIP)
+    const colunasDeFora = ['col-backlog', 'col-ready', 'col-feito', 'col-cancelado'];
+
+    return users.map(user => {
+      const userTasksInProgress = tasks.filter(t =>
+        t.executorId === user.id &&
+        !colunasDeFora.includes(t.columnId)
+      );
+
+      const totalWipPoints = userTasksInProgress.reduce((sum, t) => sum + (t.points || 0), 0);
+
+      return {
+        userId: user.id,
+        userName: user.name,
+        wipPoints: totalWipPoints,
+        taskCount: userTasksInProgress.length
+      };
+    });
+  });
+
+  readonly deadlineAlerts = computed(() => {
+    const tasks = this._state().tasks;
+    const agora = new Date().getTime();
+    const quarentaEOitoHorasEmMs = 48 * 60 * 60 * 1000;
+
+    return tasks.filter(t => {
+      if (t.columnId === 'col-feito' || t.columnId === 'col-cancelado') return false;
+      if (!t.dueDate) return false;
+
+      const prazo = new Date(t.dueDate).getTime();
+      const tempoRestante = prazo - agora;
+
+      const totalItens = t.checklist?.length || 0;
+      const itensFeitos = t.checklist?.filter(item => item.done).length || 0;
+      const progressoChecklist = totalItens > 0 ? (itensFeitos / totalItens) * 100 : 0;
+
+      return tempoRestante > 0 && tempoRestante < quarentaEOitoHorasEmMs && progressoChecklist < 80;
+    });
+  });
+
   constructor() {
     this._state.set(this.getInitialState());
   }
@@ -82,6 +145,7 @@ export class BoardStateService {
       throw new Error('Regra de Segurança: O Revisor não pode ser o próprio Executor da tarefa!');
     }
 
+    // 🚀 CORREÇÃO: Limpeza do bloco incorreto que gerava erros de compilação
     const updatedTasks = currentTasks.map(t => {
       if (t.id === taskId) {
         return {
@@ -96,7 +160,7 @@ export class BoardStateService {
     this.saveToStorage({ ...this._state(), tasks: updatedTasks });
   }
 
-  // CONTROLE DE FLUXO DE COLUNAS ESTRETO (SPRINT 4)
+  // CONTROLE DE FLUXO DE COLUNAS ESTRETO (SPRINT 4) + REFINAMENTOS
   moveTask(taskId: string, targetColumnId: string): void {
     const currentTasks = this._state().tasks;
     const task = currentTasks.find(t => t.id === taskId);
@@ -139,13 +203,20 @@ export class BoardStateService {
     // Mapeamento e atualização física da coluna do card no painel Kanban
     const updatedTasks = currentTasks.map(t => {
       if (t.id === taskId) {
+        const voltarParaOInicioReal = targetColumnId === 'col-backlog' || targetColumnId === 'col-ready';
+
+        // 🚀 REGRA NOVA: Se a tarefa estava na coluna "Feito" e foi puxada para fora dela
+        const saindoDeFeito = task.columnId === 'col-feito' && targetColumnId !== 'col-feito';
+
+        // Regra anterior da Sprint 4 (Voltando de Teste para o desenvolvimento/branches)
         const voltandoParaBranch = task.columnId === 'col-teste' && !indoParaInicio && targetColumnId !== 'col-feito' && targetColumnId !== 'col-teste';
 
         return {
           ...t,
           columnId: targetColumnId,
-          executorId: indoParaInicio ? '' : t.executorId,
-          reviewerId: voltandoParaBranch ? null : t.reviewerId,
+          executorId: voltarParaOInicioReal ? '' : t.executorId,
+          // 🚀 SEGREDO: Limpa o revisor se a task sair de "Feito" ou se voltar para uma branch vinda de teste
+          reviewerId: (saindoDeFeito || voltandoParaBranch) ? null : t.reviewerId,
           updatedAt: new Date().toISOString()
         };
       }
@@ -225,5 +296,23 @@ export class BoardStateService {
       ...this._state(),
       columns: updatedColumns
     });
+  }
+
+  deleteColumn(columnId: string): void {
+    const cols = this._state().columns;
+    const col = cols.find(c => c.id === columnId);
+    if (!col) return;
+
+    if (col.isFixed) {
+      throw new Error('Colunas fixas não podem ser removidas.');
+    }
+
+    const hasTasks = this._state().tasks.some(t => t.columnId === columnId);
+    if (hasTasks) {
+      throw new Error('Não é possível deletar uma coluna que ainda possui tarefas! Mova as tarefas para outra coluna primeiro.');
+    }
+
+    const updatedColumns = cols.filter(c => c.id !== columnId).map(c => ({ ...c }));
+    this.saveToStorage({ ...this._state(), columns: updatedColumns });
   }
 }

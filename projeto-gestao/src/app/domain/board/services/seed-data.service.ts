@@ -34,6 +34,8 @@ export class SeedDataService {
 
   getSeedTasks(): Task[] {
     const now = Date.now();
+
+    // Helper ajustado para usar 'title' em conformidade com o ChecklistItem da Sprint 5
     const makeChecklist = (n: number): ChecklistItem[] => {
       const items: ChecklistItem[] = [];
       for (let i = 0; i < n; i++) {
@@ -52,7 +54,7 @@ export class SeedDataService {
         reviewerId: null,
         columnId: 'col-backlog',
         checklist: makeChecklist(3),
-        deadline: new Date(now + 1000 * 60 * 60 * 24 * 5).toISOString(),
+        dueDate: new Date(now + 1000 * 60 * 60 * 24 * 5).toISOString().split('T')[0],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
@@ -65,7 +67,7 @@ export class SeedDataService {
         reviewerId: null,
         columnId: 'col-ready',
         checklist: makeChecklist(4),
-        deadline: new Date(now + 1000 * 60 * 60 * 24 * 3).toISOString(),
+        dueDate: new Date(now + 1000 * 60 * 60 * 24 * 3).toISOString().split('T')[0],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
@@ -78,7 +80,7 @@ export class SeedDataService {
         reviewerId: null,
         columnId: 'col-ready',
         checklist: makeChecklist(5),
-        deadline: new Date(now + 1000 * 60 * 60 * 24 * 7).toISOString(),
+        dueDate: new Date(now + 1000 * 60 * 60 * 24 * 7).toISOString().split('T')[0],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
@@ -88,10 +90,10 @@ export class SeedDataService {
         description: 'Investigate race condition in checkout',
         points: 2,
         executorId: 'u4',
-        reviewerId: 'u1', // Adicionado um revisor aqui para passar na regra de negócio da coluna teste se moverem ela
+        reviewerId: 'u1', // Vínculo válido para evitar bloqueios de fluxo
         columnId: 'col-teste',
         checklist: makeChecklist(2),
-        deadline: new Date(now + 1000 * 60 * 60 * 24 * 2).toISOString(),
+        dueDate: new Date(now + 1000 * 60 * 60 * 24 * 1).toISOString().split('T')[0], // Forçando prazo curto para testar os alertas do Dashboard (<48h)
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
@@ -104,7 +106,7 @@ export class SeedDataService {
         reviewerId: null,
         columnId: 'col-feito',
         checklist: makeChecklist(3),
-        deadline: new Date(now + 1000 * 60 * 60 * 24 * 1).toISOString(),
+        dueDate: new Date(now + 1000 * 60 * 60 * 24 * 1).toISOString().split('T')[0],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
@@ -117,7 +119,7 @@ export class SeedDataService {
         reviewerId: null,
         columnId: 'col-ready',
         checklist: makeChecklist(2),
-        deadline: new Date(now + 1000 * 60 * 60 * 24 * 4).toISOString(),
+        dueDate: new Date(now + 1000 * 60 * 60 * 24 * 4).toISOString().split('T')[0],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
