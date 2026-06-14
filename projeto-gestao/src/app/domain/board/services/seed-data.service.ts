@@ -35,7 +35,6 @@ export class SeedDataService {
   getSeedTasks(): Task[] {
     const now = Date.now();
 
-    // Helper ajustado para usar 'title' em conformidade com o ChecklistItem da Sprint 5
     const makeChecklist = (n: number): ChecklistItem[] => {
       const items: ChecklistItem[] = [];
       for (let i = 0; i < n; i++) {

@@ -1,6 +1,5 @@
-import { TestBed } from '@angular/core/testing';
-import { BoardStateService } from './board-state.service';
-import { Task } from '@core/models/interfaces';
+import {TestBed} from '@angular/core/testing';
+import {BoardStateService} from './board-state.service';
 
 describe('BoardStateService', () => {
   let service: BoardStateService;

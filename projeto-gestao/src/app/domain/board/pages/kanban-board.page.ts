@@ -1,12 +1,12 @@
-import { Component, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { DragDropModule, CdkDragDrop } from '@angular/cdk/drag-drop';
-import { BoardStateService } from '../services/board-state.service';
-import { Task, User } from '@core/models/interfaces';
-import { FormsModule } from '@angular/forms';
-import { WorkdayConversionPipe } from '@core/pipes/workday-conversion.pipe';
-import { CountdownPipe } from '@core/pipes/countdown.pipe';
-import { FibonacciValidatorDirective } from '@core/directives/fibonacci-validator.directive';
+import {Component, inject, signal} from '@angular/core';
+import {CommonModule} from '@angular/common';
+import {CdkDragDrop, DragDropModule} from '@angular/cdk/drag-drop';
+import {BoardStateService} from '../services/board-state.service';
+import {Task, User} from '@core/models/interfaces';
+import {FormsModule} from '@angular/forms';
+import {WorkdayConversionPipe} from '@core/pipes/workday-conversion.pipe';
+import {CountdownPipe} from '@core/pipes/countdown.pipe';
+import {FibonacciValidatorDirective} from '@core/directives/fibonacci-validator.directive';
 
 @Component({
   selector: 'app-kanban-board-page',
@@ -23,10 +23,10 @@ import { FibonacciValidatorDirective } from '@core/directives/fibonacci-validato
         <h1 class="text-2xl font-semibold text-slate-800">Painel de Engenharia</h1>
         <div class="flex gap-2">
           <button (click)="addNewTask()" class="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition">
-            ＋ Add Task
+            ＋ Adiciona Task
           </button>
           <button (click)="createNewColumn()" class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition">
-            Create New Column
+            Criar uma nova Coluna
           </button>
         </div>
       </header>

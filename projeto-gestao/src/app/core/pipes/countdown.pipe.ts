@@ -6,16 +6,13 @@ import { Pipe, PipeTransform } from '@angular/core';
 })
 export class CountdownPipe implements PipeTransform {
   transform(dueDate: string | null | undefined, columnId?: string): string {
-    // 🚀 REGRA NOVA: Se a tarefa já está na coluna "Feito", ignora o prazo e carimba como Concluída!
+    // REGRA: Se a tarefa já está na coluna "Feito", ignora o prazo e carimba como Concluída!
     if (columnId === 'col-feito') {
       return '✓ Concluída';
     }
 
     if (!dueDate) return 'Sem prazo';
 
-    // 🚀 CORREÇÃO DE FUSO HORÁRIO:
-    // Troca os hifens '-' por barras '/' para forçar o JavaScript a ler a data
-    // no fuso horário local do navegador do usuário, e não em UTC.
     const dateParts = dueDate.split('-');
     if (dateParts.length !== 3) return 'Sem prazo';
 

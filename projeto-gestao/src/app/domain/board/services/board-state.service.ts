@@ -1,6 +1,6 @@
-import { Injectable, signal, computed, inject } from '@angular/core';
-import { User, Column, Task, UserMetric, BoardState } from '@core/models/interfaces';
-import { SeedDataService } from './seed-data.service';
+import {computed, inject, Injectable, signal} from '@angular/core';
+import {BoardState, Column, Task, UserMetric} from '@core/models/interfaces';
+import {SeedDataService} from './seed-data.service';
 
 @Injectable({
   providedIn: 'root'
@@ -24,7 +24,7 @@ export class BoardStateService {
   readonly tasks = computed(() => this._state().tasks);
   readonly metrics = computed(() => this._state().metrics);
 
-  // 🚀 REATIVO: Atividades concluídas computadas em tempo real para o Dashboard
+  // REATIVO: Atividades concluídas computadas em tempo real para o Dashboard
   readonly throughputByUser = computed(() => {
     const tasks = this._state().tasks;
     const users = this._state().users;
@@ -42,7 +42,7 @@ export class BoardStateService {
     }).sort((a, b) => b.pointsExecuted - a.pointsExecuted);
   });
 
-  // 🚀 REATIVO: Carga de Trabalho considerando colunas dinâmicas customizadas
+  // REATIVO: Carga de Trabalho considerando colunas dinâmicas customizadas
   readonly wipLoadByUser = computed(() => {
     const tasks = this._state().tasks;
     const users = this._state().users;
@@ -73,29 +73,23 @@ export class BoardStateService {
     const quarentaEOitoHorasEmMs = 48 * 60 * 60 * 1000;
 
     return tasks.filter(t => {
-      // 1. Ignora tarefas concluídas ou canceladas
       if (t.columnId === 'col-feito' || t.columnId === 'col-cancelado') return false;
       if (!t.dueDate) return false;
 
-      // 2. Correção de fuso horário para alinhar perfeitamente com os cartões
       const dateParts = t.dueDate.split('-');
       if (dateParts.length !== 3) return false;
       const prazo = new Date(Number(dateParts[0]), Number(dateParts[1]) - 1, Number(dateParts[2])).getTime();
 
       const tempoRestante = prazo - agora;
 
-      // 3. Calcula o progresso do checklist
       const totalItens = t.checklist?.length || 0;
       const itensFeitos = t.checklist?.filter(item => item.done).length || 0;
       const progressoChecklist = totalItens > 0 ? (itensFeitos / totalItens) * 100 : 0;
 
-      // 🚀 NOVA REGRA: Está atrasada? (tempoRestante < 0)
       const estaAtrasada = tempoRestante < 0;
 
-      // 🚀 REGRA ANTERIOR: Falta menos de 48h e o progresso está abaixo de 80%?
       const emRiscoCritico = tempoRestante >= 0 && tempoRestante < quarentaEOitoHorasEmMs && progressoChecklist < 80;
 
-      // O alerta deve disparar se a tarefa estiver atrasada OU se estiver no gatilho de risco
       return estaAtrasada || emRiscoCritico;
     });
   });
@@ -136,7 +130,6 @@ export class BoardStateService {
     this._state.set(updatedState);
   }
 
-// 1. MUTAÇÃO COMPLETA DA SPRINT 3 + REGRAS DE NEGÓCIO ATUALIZADAS
   updateTask(taskId: string, updatedFields: Partial<Task>): void {
     const currentTasks = this._state().tasks;
     const task = currentTasks.find(t => t.id === taskId);
@@ -149,7 +142,6 @@ export class BoardStateService {
       }
     }
 
-    // Validação: Revisor NÃO pode ser o Executor
     const finalExecutorId = updatedFields.executorId !== undefined ? updatedFields.executorId : task.executorId;
     const finalReviewerId = updatedFields.reviewerId !== undefined ? updatedFields.reviewerId : task.reviewerId;
 
@@ -171,18 +163,14 @@ export class BoardStateService {
     this.saveToStorage({ ...this._state(), tasks: updatedTasks });
   }
 
-  // REMOVE UMA TAREFA DEFINITIVAMENTE DO BANCO DE DADOS/STORAGE
   deleteTask(taskId: string): void {
     const currentTasks = this._state().tasks;
 
-    // Filtra removendo a tarefa que possui o ID informado
     const updatedTasks = currentTasks.filter(t => t.id !== taskId);
 
-    // Salva o novo estado no LocalStorage e atualiza os Signals
     this.saveToStorage({ ...this._state(), tasks: updatedTasks });
   }
 
-  // 2. CONTROLE DE FLUXO DE COLUNAS ESTRETO (SPRINT 4) + REFINAMENTOS DE POLÍTICA DE LIMPEZA
   moveTask(taskId: string, targetColumnId: string): void {
     const currentTasks = this._state().tasks;
     const task = currentTasks.find(t => t.id === taskId);
@@ -190,7 +178,7 @@ export class BoardStateService {
 
     const indoParaInicio = targetColumnId === 'col-backlog' || targetColumnId === 'col-ready';
 
-    // Regra: Se for mover para Cancelado, solicitamos motivo e zeramos os pontos imediatamente
+    // Regra: Se for mover para Cancelado, zeramos os pontos imediatamente
     if (targetColumnId === 'col-cancelado') {
       const updatedTasks = currentTasks.map(t => {
         if (t.id === taskId) {
@@ -213,14 +201,10 @@ export class BoardStateService {
       if (task.columnId !== 'col-teste') {
         throw new Error('Fluxo Inválido: A tarefa só pode ir para "Feito" vinda da coluna "Teste".');
       }
-      // 💡 NOTA: Se você deixou o revisor opcional na coluna Teste, podemos manter essa validação ativa
-      // APENAS se você quiser que ele seja preenchido obrigatoriamente ANTES de arrastar para Feito.
-      // Se não quiser travar o arraste, comente as duas linhas abaixo:
       if (!task.reviewerId) {
         throw new Error('Bloqueio: A tarefa precisa possuir um Revisor definido antes de ir para Feito.');
       }
 
-      // Calcula e incrementa os pontos no histórico de métricas
       this.calculateMetrics(task);
     }
 
@@ -229,16 +213,13 @@ export class BoardStateService {
       if (t.id === taskId) {
         const voltarParaOInicioReal = targetColumnId === 'col-backlog' || targetColumnId === 'col-ready';
 
-        // 🚀 A NOVA REGRA DE LIMPEZA GERAL DE COLUNAS:
         let novoExecutorId = voltarParaOInicioReal ? '' : t.executorId;
         let novoReviewerId = t.reviewerId;
 
-        // Se a tarefa está indo para "Feito", nós NÃO limpamos nada! Preserva ambos.
         if (targetColumnId === 'col-feito') {
           novoExecutorId = t.executorId;
           novoReviewerId = t.reviewerId;
         }
-        // Se ela voltar de Teste para o desenvolvimento normal (ex: col-progress ou branches dinâmicas)
         else if (task.columnId === 'col-teste' && targetColumnId !== 'col-teste') {
           novoReviewerId = null; // Limpa o revisor para nova homologação futura
         }

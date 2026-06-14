@@ -1,8 +1,9 @@
-import { TestBed, ComponentFixture } from '@angular/core/testing';
-import { Component, DebugElement } from '@angular/core';
-import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { By } from '@angular/platform-browser';
-import { FibonacciValidatorDirective } from './fibonacci-validator.directive';
+import {ComponentFixture, TestBed} from '@angular/core/testing';
+import {Component, DebugElement} from '@angular/core';
+import {FormControl, ReactiveFormsModule} from '@angular/forms';
+import {By} from '@angular/platform-browser';
+import {FibonacciValidatorDirective} from './fibonacci-validator.directive';
+
 @Component({
   selector: 'app-test',
   template: '<input type="number" [formControl]="ctrl" appFibonacciValidator />',

@@ -8,7 +8,7 @@ export interface User {
 
 export interface ChecklistItem {
   id: string;
-  title: string; // 👈 Garanta que aqui seja 'title'
+  title: string;
   done: boolean;
 }
 
@@ -20,7 +20,7 @@ export interface Task {
   executorId: string;
   reviewerId?: string | null;
   points: number;
-  checklist?: ChecklistItem[]; // 👈 Usando a interface unificada com 'title'
+  checklist?: ChecklistItem[];
   createdAt: string;
   updatedAt: string;
   dueDate?: string;
