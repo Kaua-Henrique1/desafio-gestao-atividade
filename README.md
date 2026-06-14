@@ -10,7 +10,7 @@ Este projeto consiste em uma aplicação web para gestão de fluxos de trabalho 
 
 ## Inspiração Metodológica: A Solução para as Dores do Ricardo
 
-Para resolver o problema de gestão do Ricardo, baseamos a solução em algumas metodologias, criando uma **Variação Adaptada do Kanban**, combinando conceitos de outras estruturas ágeis:
+Para resolver o problema de gestão do Ricardo, pensei numa solução, criando uma **Variação Adaptada do Kanban**, combinando conceitos de outras estruturas ágeis:
 
 * **Kanban Nativo:** Utilizado para garantir a **visualização do fluxo de trabalho em tempo real**. O Ricardo consegue bater o olho no painel e entender o status de cada demanda imediatamente.
 * **Scrum (Conceito de Esforço):** Absorvemos a estimativa por **Pontos de Fibonacci** e o conceito de **WIP (Work In Progress)** para limitar o trabalho em andamento por desenvolvedor, evitando sobrecargas.
@@ -71,7 +71,7 @@ Para garantir uma entrega funcional que rode de primeira no prazo estipulado, os
 * **Acoplamento Visual de Contexto:** A visualização das abas de Kanban, o Modal de Detalhes da Tarefa e os cards do Dashboard residem no mesmo arquivo de página orquestradora de dados entre subcomponentes isolados.
 
 ### Visão de Futuro (Melhorias e Escalabilidade)
-Se houvesse mais tempo para o crescimento do projeto, as seguintes melhorias seriam:
+Se houvesse mais tempo para o crescimento do projeto, as seguintes melhorias seriam priorizadas:
 1.  **Isolamento de Componentes Visuais:** Extração do Modal de Tarefas e dos blocos do Dashboard para componentes independentes (`task-modal.component.ts` e `kpi-dashboard.component.ts`) aumentando a reusabilidade.
 2.  **Página de Gestão da equipe:** Adicionar uma página dedicada para o Dono do Projeto/Gestor cadastrar, editar e desativar funcionários (Usuários do Quadro).
 3.  **Evolução da Infraestrutura:** Criação de uma camada de repositório independente (`BoardRepository`) conectada a uma backend (ex: Java) que poderia implementar Autenticação e Segurança (JWT) com banco de dados relacional (ex: PostgreSQL), substituindo completamente o `localStorage`.
@@ -104,7 +104,7 @@ Atualmente, a aplicação conta com **31 testes unitários em 100% de sucesso**,
 
 Como rodar os testes:
 Garanta que esteja no diretório **'projeto-gestao'** e execute o comando abaixo para rodar a suíte de testes:
-```bashnpm run test
+```bash
 ng test
 ```
 
